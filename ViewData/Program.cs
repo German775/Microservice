@@ -8,18 +8,7 @@ namespace ViewData
     {
         static void Main(string[] args)
         {
-            while (true)
-            {
-                var command = Console.ReadLine();
-                if (command == "start")
-                {
-                    Start();
-                }
-            }
-        }
-
-        public static void Start()
-        {
+            Console.WriteLine("Service start");
             var queue = new QueueTransit("Config.json", "ConfigTransite.json");
             while (true)
             {

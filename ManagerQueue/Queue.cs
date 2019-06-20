@@ -37,8 +37,8 @@ namespace ManagerQueue
             Model.ExchangeDeclare(ExchangeName, ExchangeType.Direct);
             Model.QueueDeclare(QueueName, false, false, false, null);
             Model.QueueBind(QueueName, ExchangeName, RoutingKey, null);
-
         }
+
         public void SetData(string data)
         {
             try
@@ -100,9 +100,7 @@ namespace ManagerQueue
                     SubscriptionForFirstQueue.Ack(basicDeliveryEventArgs);
                     FirstQueue.Model.Close();
                     FirstQueue.Connection.Close();
-                    //
                     SubscriptionForFirstQueue.Close();
-                    //
                     SendToTwoQueue(messageContent);
                     return;
                 }
@@ -131,9 +129,7 @@ namespace ManagerQueue
                 if (messageContent == "stop")
                 {
                     SubscriptionForSecondQueue.Ack(basicDeliveryEventArgs);
-                    //
                     SubscriptionForSecondQueue.Close();
-                    //
                     FirstQueue.Model.Close();
                     FirstQueue.Connection.Close();
                     ServiceWork = false;
