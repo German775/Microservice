@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Text;
 using RabbitMQ.Client;
 using RabbitMQ.Client.MessagePatterns;
@@ -11,63 +12,78 @@ namespace ManagerQueue
         public string QueueName { get; set; }
         public string RoutingKey { get; set; }
         public bool ServiceWork = true;
-
+        public Config Config;
         public ConnectionFactory Factory;
         public IConnection Connection;
         public IModel Model;
+        private const string _CommandStop = "stop"; 
 
         public Queue(string configFile)
         {
-            var settings = new Config().GetConfig(configFile);
-            this.ExchangeName = settings.ExchangeName;
-            this.QueueName = settings.QueueName;
-            this.RoutingKey = settings.RoutingKey;
-
-            this.Factory = new ConnectionFactory
+            try
             {
-                UserName = settings.UserName,
-                Password = settings.Password,
-                VirtualHost = settings.VirtualHost,
-                HostName = settings.HostName
+                this.Config = new Config().GetConfig(configFile);
+                this.QueueName = Config.QueueName;
+                
+                this.Factory = new ConnectionFactory
+                {
+                    UserName = Config.UserName,
+                    Password = Config.Password,
+                    VirtualHost = Config.VirtualHost,
+                    HostName = Config.HostName
 
-            };
+                };
 
-            this.Connection = Factory.CreateConnection();
-            this.Model = Connection.CreateModel();
-            Model.ExchangeDeclare(ExchangeName, ExchangeType.Direct);
-            Model.QueueDeclare(QueueName, false, false, false, null);
-            Model.QueueBind(QueueName, ExchangeName, RoutingKey, null);
+                this.Connection = Factory.CreateConnection();
+                this.Model = Connection.CreateModel();
+                Model.ExchangeDeclare(Config.ExchangeName, ExchangeType.Direct);
+                Model.QueueDeclare(Config.QueueName, false, false, false, null);
+                Model.QueueBind(Config.QueueName, Config.ExchangeName, Config.RoutingKey, null);
+            }
+            catch (Exception exception)
+            {
+                Console.WriteLine(exception);
+                Process.GetCurrentProcess().Kill();
+            }
         }
 
         public void SetData(string data)
         {
             try
             {
-                if (data == "stop")
+                if (data == _CommandStop)
                 {
                     byte[] messageStop = Encoding.UTF8.GetBytes(data);
-                    Model.BasicPublish(ExchangeName, RoutingKey, null, messageStop);
+                    Model.BasicPublish(Config.ExchangeName, Config.RoutingKey, null, messageStop);
                     ServiceWork = false;
                     return;
                 }
 
                 byte[] messageBodyBytes = Encoding.UTF8.GetBytes(data);
-                Model.BasicPublish(ExchangeName, RoutingKey, null, messageBodyBytes);
+                Model.BasicPublish(Config.ExchangeName, Config.RoutingKey, null, messageBodyBytes);
             }
             catch (Exception exception)
             {
+                byte[] messageStop = Encoding.UTF8.GetBytes(_CommandStop);
+                Model.BasicPublish(Config.ExchangeName, Config.RoutingKey, null, messageStop);
+                ServiceWork = false;
                 Console.WriteLine(exception);
             }
         }
 
         public bool ServiceOperability()
         {
-            if (ServiceWork == true) return true;
+            if (ServiceWork == true)
+            {
+                return true;
+            }
             else
             {
-                Model.Close();
-                Connection.Close();
-                Console.WriteLine("Service stop");
+                if (Model != null && Connection != null)
+                {
+                    Model.Close();
+                    Connection.Close();
+                }
                 return false;
             }
         }
@@ -80,13 +96,22 @@ namespace ManagerQueue
         public Queue FirstQueue;
         public Queue SecondQueue;
         public bool ServiceWork = true;
+        private const string _CommandStop = "stop";
 
         public QueueTransit(string configForFirstQueue, string configForSecondQueue)
         {
-            this.FirstQueue = new Queue(configForFirstQueue);
-            this.SubscriptionForFirstQueue = new Subscription(FirstQueue.Model, FirstQueue.QueueName, false);
-            this.SecondQueue = new Queue(configForSecondQueue);
-            this.SubscriptionForSecondQueue = new Subscription(SecondQueue.Model, SecondQueue.QueueName, false);
+            try
+            {
+                this.FirstQueue = new Queue(configForFirstQueue);
+                this.SubscriptionForFirstQueue = new Subscription(FirstQueue.Model, FirstQueue.QueueName, false);
+                this.SecondQueue = new Queue(configForSecondQueue);
+                this.SubscriptionForSecondQueue = new Subscription(SecondQueue.Model, SecondQueue.QueueName, false);
+            }
+            catch (Exception exception)
+            {
+                Console.WriteLine(exception);
+                Process.GetCurrentProcess().Kill();
+            }
         }
 
         public void TransitData()
@@ -95,7 +120,7 @@ namespace ManagerQueue
             {
                 var basicDeliveryEventArgs = SubscriptionForFirstQueue.Next();
                 var messageContent = Encoding.UTF8.GetString(basicDeliveryEventArgs.Body);
-                if (messageContent == "stop")
+                if (messageContent == _CommandStop)
                 {
                     SubscriptionForFirstQueue.Ack(basicDeliveryEventArgs);
                     FirstQueue.Model.Close();
@@ -112,6 +137,8 @@ namespace ManagerQueue
             catch (Exception exception)
             {
                 Console.WriteLine(exception.ToString());
+                ServiceWork = false;
+                SendToTwoQueue(_CommandStop);
             }
         }
 
@@ -126,7 +153,7 @@ namespace ManagerQueue
             {
                 var basicDeliveryEventArgs = SubscriptionForSecondQueue.Next();
                 var messageContent = Encoding.UTF8.GetString(basicDeliveryEventArgs.Body);
-                if (messageContent == "stop")
+                if (messageContent == _CommandStop)
                 {
                     SubscriptionForSecondQueue.Ack(basicDeliveryEventArgs);
                     SubscriptionForSecondQueue.Close();
@@ -141,15 +168,18 @@ namespace ManagerQueue
             catch (Exception exception)
             {
                 Console.WriteLine(exception);
+                ServiceWork = false;
             }
         }
 
         public bool ServiceOperability()
         {
-            if (ServiceWork == true) return true;
+            if (ServiceWork == true)
+            {
+                return true;
+            }
             else
             {
-                Console.WriteLine("Service stop");
                 return false;
             }
         }

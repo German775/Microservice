@@ -13,7 +13,11 @@ namespace GenerateData
             {
                 Console.WriteLine("Set data from queue #1: ");
                 queue.SetData(Console.ReadLine());
-                if (queue.ServiceOperability() == false) break;
+                if (queue.ServiceOperability() == false)
+                {
+                    Console.WriteLine("Service stop");
+                    break;
+                }
             }
         }
     }

@@ -16,20 +16,12 @@ namespace ManagerQueue
 
         public Config GetConfig(string path)
         {
-            try
+            string json;
+            using (var jsonString = new StreamReader(path))
             {
-                string json;
-                using (var jsonString = new StreamReader(path))
-                {
-                    json = jsonString.ReadToEnd();
-                }
-                return JsonConvert.DeserializeObject<Config>(json);
+                json = jsonString.ReadToEnd();
             }
-            catch (Exception exception)
-            {
-                Console.WriteLine(exception.ToString());
-                return null;
-            }
+            return JsonConvert.DeserializeObject<Config>(json);
         }
     }
 }
