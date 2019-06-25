@@ -1,0 +1,9 @@
+{
+  "UserName": "guest",
+  "Password": "guest",
+  "VirtualHost": "/",
+  "HostName": "localhost",
+  "ExchangeName": "test2",
+  "QueueName": "test2",
+  "RoutingKey": "test2"
+}
